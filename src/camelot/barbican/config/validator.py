@@ -18,3 +18,7 @@ def _validate(config: Mapping, schema_uri: str) -> None:
 
 def validate_project_config(config: Mapping) -> None:
     _validate(config, "urn:barbican:project")
+
+
+def validate_sdk_config(config: Mapping) -> None:
+    _validate(config, "urn:barbican:sdk")
