@@ -1,0 +1,60 @@
+{
+    "$id": "urn:barbican:sdk",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "barbican SDK TOML configuration",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Project Name"
+        },
+        "version": {
+            "type": "string"
+        },
+        "license": {
+            "type": "string",
+            "description": "license identifier (must be a valid SPDX License Identifier)"
+        },
+        "license_file": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "license file name"
+        },
+        "kernel": {
+            "$ref": "urn:barbican:kernel"
+        },
+        "runtime": {
+            "$ref": "urn:barbican:runtime"
+        },
+        "compiler": {
+            "type": "object",
+            "properties": {
+                "gcc": {
+                    "$ref": "urn:barbican:compiler:gcc"
+                },
+                "rustc": {
+                    "$ref": "urn:barbican:compiler:rustc"
+                }
+            },
+            "additionalProperties": false,
+            "required": [ "gcc", "rustc" ]
+        },
+        "library": {
+            "type": "object",
+            "patternProperties": {
+                ".*": {
+                    "type": "object",
+                    "$ref": "urn:barbican:library"
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": [ "name", "version", "kernel", "runtime", "compiler" ],
+    "dependentRequired": {
+        "license": ["license_file"],
+        "license_file": ["license"]
+    }
+}

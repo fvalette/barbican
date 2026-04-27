@@ -1,0 +1,30 @@
+{
+    "$id": "urn:barbican:compiler:rustc",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "version": { "type": "string" },
+        "channel": {
+            "enum": ["stable", "nightly"],
+            "default": "stable"
+        },
+        "profile": {
+            "enum": ["minimal", "default"],
+            "default": "minimal"
+        },
+        "extra": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "targets": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1
+        }
+    },
+    "required": [ "version", "targets" ]
+}

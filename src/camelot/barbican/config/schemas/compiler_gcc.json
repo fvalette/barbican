@@ -1,0 +1,17 @@
+{
+    "$id": "urn:barbican:compiler:gcc",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "scm": {
+            "type": "object",
+            "properties": {
+                "tarball": {
+                    "$ref": "urn:barbican:scm:tarball"
+                }
+            },
+            "required": [ "tarball" ]
+        }
+    },
+    "required": [ "scm" ]
+}
