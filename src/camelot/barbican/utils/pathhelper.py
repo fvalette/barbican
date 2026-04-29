@@ -59,11 +59,12 @@ class ProjectPath:
     project_dir: Path
     output_dir: Path
     prefix: Path = field(default_factory=default_prefix)
+    # config_filename is `project.toml` by default but can be `sdk.toml` for instance
+    config_filename: str = "project.toml"
 
     # ClassVar annotation is used by dataclass decorator in order to exclude member
     # from consideration as a field and to be ignored by the dataclass mechanisms.
     filename: ClassVar[str] = "project_tree.json"
-    config_filename: ClassVar[str] = "project.toml"
 
     def __post_init__(self) -> None:
         if not self.prefix.is_absolute():
