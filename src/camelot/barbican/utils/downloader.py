@@ -85,37 +85,41 @@ def _download(url: str, dest_dir: Path, progress: Progress, task_id: TaskID) -> 
     #   `delete_on_close` is a py3.12+ kwargs.
     #   As we still support py3.11, we need to workaround here.
     #   To be removed when python 3.11 support will be dropped.
+    #
+    #   Changing delete flag inside context manager seems to be not working for windows platform
+    #   for python 3.11 (this is okay for linux/macOS)
     kwargs = dict()
-    if sys.version_info.major == 3 and sys.version_info.minor >= 12:
+    if sys.version_info >= (3, 12):
         kwargs["delete_on_close"] = False
+    else:
+        kwargs["delete"] = False
 
-    with NamedTemporaryFile("wb", dir=dest_dir, **kwargs) as f:  # type: ignore
-        logger.debug(f"downloading to temporary file {f.name}")
-        progress.start_task(task_id)
+    try:
+        tmp_file = None
+        with NamedTemporaryFile("wb", dir=dest_dir, **kwargs) as f:  # type: ignore
+            tmp_file = f.name
+            logger.debug(f"downloading to temporary file {f.name}")
+            progress.start_task(task_id)
 
-        for chunk in r.iter_content(chunk_size=chunk_size):
-            f.write(chunk)
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                f.write(chunk)
 
-            # In case of chunked encoding, iter_content might be empty
-            if len(chunk) is None:
-                continue
+                # In case of chunked encoding, iter_content might be empty
+                if len(chunk) is None:
+                    continue
 
-            progress.update(task_id, advance=len(chunk))
-        if length == 0:
-            progress.update(task_id, total=f.tell())
+                progress.update(task_id, advance=len(chunk))
+            if length == 0:
+                progress.update(task_id, total=f.tell())
 
-        # XXX:
-        #   Note that, as a side effect, if there is a crash between file close and rename
-        #   operations, the temporary file will not be removed in python 3.11 and prior version
-        if sys.version_info.major == 3 and sys.version_info.minor < 12:
+            f.close()
+            os.rename(f.name, filepath)
+            # Once renamed to final download name, set delete flag to False and exit context manager
             f.delete = False
-            f._closer.delete = False
+    finally:
+        if os.path.isfile(tmp_file):
+            os.unlink(tmp_file)
 
-        f.close()
-        os.rename(f.name, filepath)
-        # Once renamed to final download name, set delete flag to False and exit context manager
-        f.delete = False
-        f._closer.delete = False
     return filepath
 
 
