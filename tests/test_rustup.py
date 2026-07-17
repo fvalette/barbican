@@ -4,18 +4,17 @@
 
 """Tests for the camelot.barbican.rust.Rustup class."""
 
-import pytest
+import subprocess
 import sys
 
 from pathlib import Path
 
+import pytest
+
 from camelot.barbican.rust import Rustup
 
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="Rustup-init installer does not work for windows platform"
-)
-
+_EXE = ".exe" if sys.platform == "win32" else ""
 
 _VALID_CONFIG: dict = {
     "version": "1.85.0",
@@ -43,6 +42,45 @@ def installed_rustup(
     return r
 
 
+class TestRustupHostTarget:
+    """Tests for platform-aware installer URL generation."""
+
+    def test_host_target_tuple_nonempty(self) -> None:
+        """Host target tuple must be a non-empty string."""
+        assert Rustup._host_target_tuple()
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific check")
+    def test_host_target_tuple_linux(self) -> None:
+        """Host target tuple contains 'linux' on Linux."""
+        assert "linux" in Rustup._host_target_tuple()
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific check")
+    def test_host_target_tuple_macos(self) -> None:
+        """Host target tuple contains 'apple-darwin' on macOS."""
+        assert "apple-darwin" in Rustup._host_target_tuple()
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific check")
+    def test_host_target_tuple_windows(self) -> None:
+        """Host target tuple contains 'windows' on Windows."""
+        assert "windows" in Rustup._host_target_tuple()
+
+    def test_installer_url_format(self) -> None:
+        """Installer URL must point to the static.rust-lang.org distribution path."""
+        url = Rustup._installer_url()
+        assert url.startswith("https://static.rust-lang.org/rustup/dist/")
+        assert "rustup-init" in url
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific check")
+    def test_installer_url_windows_exe(self) -> None:
+        """Installer URL must end with '.exe' on Windows."""
+        assert Rustup._installer_url().endswith(".exe")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Non-Windows check")
+    def test_installer_url_no_exe(self) -> None:
+        """Installer URL must not end with '.exe' on non-Windows platforms."""
+        assert not Rustup._installer_url().endswith(".exe")
+
+
 class TestRustupPaths:
     """Tests for the ``cargo_home`` and ``rustup_home`` path properties."""
 
@@ -63,14 +101,15 @@ class TestRustupInstall:
     @pytest.mark.dependency(name="test_rustup_binary_exists")
     def test_rustup_binary_exists(self, installed_rustup: Rustup) -> None:
         """The rustup binary must exist and be executable after install."""
-        rustup_bin = installed_rustup.cargo_home / "bin" / "rustup"
+        rustup_bin = installed_rustup.cargo_home / "bin" / f"rustup{_EXE}"
         assert rustup_bin.exists(), f"rustup binary not found at {rustup_bin}"
-        assert rustup_bin.stat().st_mode & 0o111, "rustup binary is not executable"
+        if sys.platform != "win32":
+            assert rustup_bin.stat().st_mode & 0o111, "rustup binary is not executable"
 
     @pytest.mark.dependency(name="test_cargo_binary_exists")
     def test_cargo_binary_exists(self, installed_rustup: Rustup) -> None:
         """The cargo binary must exist after install."""
-        cargo_bin = installed_rustup.cargo_home / "bin" / "cargo"
+        cargo_bin = installed_rustup.cargo_home / "bin" / f"cargo{_EXE}"
         assert cargo_bin.exists(), f"cargo binary not found at {cargo_bin}"
 
     @pytest.mark.dependency(
@@ -79,10 +118,8 @@ class TestRustupInstall:
     )
     def test_installed_version(self, installed_rustup: Rustup) -> None:
         """The configured toolchain version must appear in 'rustup toolchain list'."""
-        import subprocess
-
         result = subprocess.run(
-            [str(installed_rustup.cargo_home / "bin" / "rustup"), "toolchain", "list"],
+            [str(installed_rustup.cargo_home / "bin" / f"rustup{_EXE}"), "toolchain", "list"],
             capture_output=True,
             text=True,
             check=True,
@@ -98,11 +135,9 @@ class TestRustupInstall:
     )
     def test_installed_target(self, installed_rustup: Rustup) -> None:
         """The configured cross-target must appear in 'rustup target list --installed'."""
-        import subprocess
-
         result = subprocess.run(
             [
-                str(installed_rustup.cargo_home / "bin" / "rustup"),
+                str(installed_rustup.cargo_home / "bin" / f"rustup{_EXE}"),
                 "target",
                 "list",
                 "--installed",

@@ -5,6 +5,7 @@
 """Rustup toolchain installer for the Camelot SDK."""
 
 import os
+import platform
 import stat
 import subprocess
 from dataclasses import dataclass, field
@@ -41,16 +42,48 @@ class RustupConfig:
 
 
 class Rustup:
-    """Rust toolchain installer using the official rustup-init script.
+    """Rust toolchain installer using the official pre-built rustup-init binary.
 
-    Downloads and runs ``https://sh.rustup.rs``, then adds the configured
+    Downloads the ``rustup-init`` binary for the host platform directly from
+    ``https://static.rust-lang.org/rustup/dist/{target-tuple}/rustup-init[.exe]``,
+    runs it to install the configured toolchain, then adds the required
     cross-compilation targets and optional extra components.  The environment
     variables ``CARGO_HOME`` and ``RUSTUP_HOME`` are set from *host_dir* so
     that the entire toolchain is installed inside the SDK tree instead of the
     user's home directory.
+
+    Supported host platforms: Linux (x86_64, aarch64), macOS (x86_64, arm64),
+    Windows (x86_64, arm64).
     """
 
-    _RUSTUP_INIT_URL: ClassVar[str] = "https://sh.rustup.rs"
+    _RUSTUP_DIST_BASE: ClassVar[str] = "https://static.rust-lang.org/rustup/dist"
+
+    @staticmethod
+    def _host_target_tuple() -> str:
+        system = platform.system()
+        machine = platform.machine()
+
+        if machine in ("x86_64", "AMD64"):
+            arch = "x86_64"
+        elif machine in ("aarch64", "arm64"):
+            arch = "aarch64"
+        else:
+            raise RuntimeError(f"Rustup: unsupported host architecture: {machine!r}")
+
+        if system == "Linux":
+            return f"{arch}-unknown-linux-gnu"
+        elif system == "Darwin":
+            return f"{arch}-apple-darwin"
+        elif system == "Windows":
+            return f"{arch}-pc-windows-msvc"
+        else:
+            raise RuntimeError(f"Rustup: unsupported host platform: {system!r}")
+
+    @classmethod
+    def _installer_url(cls) -> str:
+        target = cls._host_target_tuple()
+        suffix = ".exe" if platform.system() == "Windows" else ""
+        return f"{cls._RUSTUP_DIST_BASE}/{target}/rustup-init{suffix}"
 
     def __init__(self, config: dict, host_dir: Path) -> None:
         """Initialise a Rustup installer from the TOML compiler configuration.
@@ -155,9 +188,14 @@ class Rustup:
         self._cargo_home.mkdir(parents=True, exist_ok=True)
         self._rustup_home.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Downloading rustup-init from {self._RUSTUP_INIT_URL}")
-        init_script = download_file(self._RUSTUP_INIT_URL, dl_dir)
-        init_script.chmod(init_script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        url = self._installer_url()
+        logger.info(f"Downloading rustup-init from {url}")
+        init_script = download_file(url, dl_dir)
+
+        if platform.system() != "Windows":
+            init_script.chmod(
+                init_script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+            )
 
         if self._cfg.channel == RustupChannel.Nightly:
             toolchain = f"{self._cfg.channel}-{self._cfg.version}"
@@ -166,7 +204,6 @@ class Rustup:
 
         self._run(
             [
-                "sh",
                 str(init_script),
                 "-y",
                 "--no-modify-path",
@@ -178,7 +215,8 @@ class Rustup:
             f"Installing Rust toolchain {toolchain}",
         )
 
-        rustup = str(self._cargo_home / "bin" / "rustup")
+        exe = ".exe" if platform.system() == "Windows" else ""
+        rustup = str(self._cargo_home / "bin" / f"rustup{exe}")
         self._run(
             [rustup, "target", "add", *self._cfg.targets],
             f"Adding Rust targets: {', '.join(self._cfg.targets)}",
