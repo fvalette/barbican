@@ -38,8 +38,8 @@ class SchemaTocDirective(SphinxDirective):
 
         .. schematoc::
 
-    Options
-    -------
+    Options::
+
     :exclude: str
         Comma-separated list of URNs to exclude from the listing.
     """

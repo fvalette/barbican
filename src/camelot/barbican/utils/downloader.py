@@ -95,7 +95,7 @@ def _download(url: str, dest_dir: Path, progress: Progress, task_id: TaskID) -> 
         kwargs["delete"] = False
 
     try:
-        tmp_file = None
+        tmp_file: str = ""
         with NamedTemporaryFile("wb", dir=dest_dir, **kwargs) as f:  # type: ignore
             tmp_file = f.name
             logger.debug(f"downloading to temporary file {f.name}")

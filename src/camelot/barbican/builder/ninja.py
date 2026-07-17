@@ -87,7 +87,7 @@ class NinjaWriter:
 
     Parameters
     ----------
-    width : int, optional
+    width : int
         Maximum line width before wrapping (default is 100).
 
     Notes
@@ -348,17 +348,17 @@ class NinjaWriter:
             Explicit outputs.
         rule : str
             Rule name.
-        inputs : list[str | PurePath | dict] | None (optional)
+        inputs : list[str | PurePath | dict] | None
             Explicit inputs.
-        implicit : list[str | PurePath | dict] | None (optional)
+        implicit : list[str | PurePath | dict] | None
             Implicit dependencies (after `|`).
-        order_only : list[str | PurePath | dict] | None (optional)
+        order_only : list[str | PurePath | dict] | None
             Order-only dependencies (after `||`).
-        validation : list[str | PurePath | dict] | None (optional)
+        validation : list[str | PurePath | dict] | None
             Validation dependencies (after `|@`)
-        implicit_outputs : list[str | PurePath] | None (optional)
+        implicit_outputs : list[str | PurePath] | None
             Additional outputs (after `|`, before `:`).
-        variables : dict[str, str | PurePath | list] | None (optional)
+        variables : dict[str, str | PurePath | list] | None
             Per-build variables.
 
         Note
@@ -532,11 +532,6 @@ class NinjaBuilderProtocol(
 
     Ninja builders (e.g. Package builder or internal build step) are likely implementing
     all previous builder protocol (i.e. Variables, Rules and Builds).
-
-    Methods
-    -------
-    name : str
-        Unique builder name.
     """
 
     @property
@@ -644,6 +639,6 @@ class NinjaFile:
 
         Parameters
         ----------
-        path : Path, optional
+        path : Path
         """
         path.write_text(self.generate(), encoding="utf-8")
